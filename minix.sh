@@ -64,28 +64,55 @@ run_minix()
 }
 
 # Backupuje aktualny obraz
+# Tworzona jest kopia z nazwą użytkownika
+image_create_named_backup()
+{
+	if ! test -d ./backups/
+	then
+		mkdir -m 777 backups >/dev/null
+	fi
+	if test -f $MINIX_CUR_NAME
+	then
+		read -p 'Wpisz nazwe kopii: ' BACKUP_NAME
+		if [ -e ./backups/$BACKUP_NAME ]
+		then
+			echo "!!! Taka nazwa juz istnije !!!"	
+			echo "!!! Nie utworzono kopii !!!"
+		else
+			if [ -z $BACKUP_NAME ]
+			then
+			BACKUP_TIMESTAMP=`$CREATE_DATE_CMD`
+			BACKUP_FILENAME="./backups/${MINIX_CUR_NAME}_${BACKUP_TIMESTAMP}"
+			else 
+			BACKUP_FILENAME="./backups/$BACKUP_NAME"		
+			fi
+		cp -v $MINIX_CUR_NAME $BACKUP_FILENAME
+		echo "-> Utworzono backup obecnej wersji pod nazwą $BACKUP_FILENAME"
+		fi
+	fi
+	
+	
+}
+# Backupuje aktualny obraz
 # Tworzona jest kopia z nazwą zawierającą aktualną datę
 image_create_backup()
 {
-	if ! test -f ./backups/
+	if ! test -d ./temp_backups/
 	then
-		mkdir backups
+		mkdir -m 777 temp_backups >/dev/null
 	fi
 	if test -f $MINIX_CUR_NAME
 	then
 		BACKUP_TIMESTAMP=`$CREATE_DATE_CMD`
-		BACKUP_FILENAME="./backups/${MINIX_CUR_NAME}_${BACKUP_TIMESTAMP}"
-		cp -v $MINIX_CUR_NAME $BACKUP_FILENAME
+		TEMP_BACKUP_FILENAME="./temp_backups/${MINIX_CUR_NAME}_${BACKUP_TIMESTAMP}"
+		cp -v $MINIX_CUR_NAME $TEMP_BACKUP_FILENAME
 	fi
-	backups_num=`ls -1 ./backups/ | wc -l`
+	backups_num=`ls -1 ./temp_backups/ | wc -l`
 	if [ "$backups_num" -gt 5 ]
 	then
-		find ./backups/* | head -n 1 | xargs rm
+		find ./temp_backups/* | head -n 1 | xargs rm
 	fi
-	
-	echo "-> Utworzono backup obecnej wersji pod nazwą $BACKUP_FILENAME"
 }
-
 # Zamontuj obraz minixa w katalogu roboczym
 # Działanie qemu kiedy obraz jest zamontowany jest (dla mnie) nieznane - po zmianach odmontowuję obraz
 mount_image()
@@ -155,7 +182,7 @@ do
 			# Odmintuj obraz, aby zapisać zmiany
 			umount_image
 			# Stwórz kopię
-			image_create_backup
+			image_create_named_backup
 			# Zamontuj z powrotem obraz do pracy
 			mount_image
 			;;
@@ -181,7 +208,7 @@ do
 		"4")
 			# Lista wszystkich obrazów które mogą zostać przywrócone
 			CANCEL_NAME='Anuluj'
-			FILES_AVAILIBLE=`ls -t ./backups/${MINIX_CUR_NAME}_*`
+			FILES_AVAILIBLE=`ls -t ./backups/`
 			
 			# Super polecenie select oszczędza kupę roboty - wyświetla listę i pozwala wybrać
 			select FILE_NAME in $CANCEL_NAME $FILES_AVAILIBLE
@@ -272,6 +299,7 @@ do
 			echo "Chwileczkę..."
 			;;
 		"q")
+			#rm -r -d temp_backups
 			echo "-> No elo."
 			break
 			;;
